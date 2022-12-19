@@ -1,9 +1,91 @@
 import math
+import random
+from enum import Enum
 from random import randint, choice
+from typing import Any
 
 import pygame
 from sys import exit
 
+
+class ObstacleType(Enum):
+    SNAIL = 0
+    FLY = 1
+
+
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        player_walk_1 = pygame.image.load('graphics/player/player_walk_1.png').convert_alpha()
+        player_walk_2 = pygame.image.load('graphics/player/player_walk_2.png').convert_alpha()
+        self.player_walk = [player_walk_1, player_walk_2]
+        self.player_index = 0
+        self.player_jump = pygame.image.load('graphics/player/jump.png').convert_alpha()
+
+        self.image = self.player_walk[self.player_index]
+        self.rect = self.image.get_rect(midbottom=(200, 300))
+        self.gravity = 0
+
+    def player_input(self):
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_SPACE] and self.rect.bottom >= 300:
+            self.gravity = -20
+
+    def apply_gravity(self):
+        self.gravity += 1
+        self.rect.y += self.gravity
+        if self.rect.bottom >= 300:
+            self.rect.bottom = 300
+
+    def animate_states(self):
+        if self.rect.bottom < 300:
+            self.image = self.player_jump
+        else:
+            self.player_index += 0.1
+            self.image = self.player_walk[int(self.player_index) % 2]
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        self.player_input()
+        self.apply_gravity()
+        self.animate_states()
+
+
+class Obstacle(pygame.sprite.Sprite):
+    def __init__(self, obstacle: ObstacleType):
+        super().__init__()
+
+        if obstacle == ObstacleType.FLY:
+            fly_frame_1 = pygame.image.load('graphics/Fly/Fly1.png').convert_alpha()
+            fly_frame_2 = pygame.image.load('graphics/Fly/Fly2.png').convert_alpha()
+            self.frames = [fly_frame_1, fly_frame_2]
+            y_pos = 210
+            self.speed = 0.1
+
+        elif obstacle == ObstacleType.SNAIL:
+            snail_frame_1 = pygame.image.load('graphics/snail/snail1.png').convert_alpha()
+            snail_frame_2 = pygame.image.load('graphics/snail/snail2.png').convert_alpha()
+            self.frames = [snail_frame_1, snail_frame_2]
+            y_pos = 300
+            self.speed = 0.1
+        else:
+            raise ValueError('No valid obstacle type given')
+
+        self.animation_index = 0
+        self.image = self.frames[0]
+        self.rect = self.image.get_rect(midbottom=(random.randint(900, 1100), y_pos))
+
+    def animation_state(self):
+        self.animation_index += self.speed
+        self.image = self.frames[int(self.animation_index) % 2]
+
+    def update(self, *args: Any, **kwargs: Any) -> None:
+        self.animation_state()
+        self.rect.x -= 6
+        self.destroy()
+
+    def destroy(self):
+        if self.rect.x <= -100:
+            self.kill()
 
 def display_score():
     current_time = math.floor((pygame.time.get_ticks() - start_time) / 1000) + 1
@@ -51,6 +133,12 @@ game_active = False
 start_time = 0
 
 score = None
+
+#Groups
+player = pygame.sprite.GroupSingle()
+player.add(Player())
+
+obstacle_group = pygame.sprite.Group()
 
 sky_surface = pygame.image.load('graphics/Sky.png').convert()
 ground_surface = pygame.image.load('graphics/ground.png').convert()
@@ -122,6 +210,8 @@ while True:
                     player_gravity = -20
 
             if event.type == obstacle_timer:
+                obstacle_group.add(Obstacle(random.choice(list(ObstacleType))))
+
                 if choice([True, False]):
                     obstacles_rect_list.append(snail_surf.get_rect(bottomright=(randint(900, 1100), 300)))
                 else:
@@ -155,6 +245,12 @@ while True:
             player_rect.bottom = 300
         player_animation()
         screen.blit(player_surf, player_rect)
+
+        player.draw(screen)
+        player.update()
+
+        obstacle_group.draw(screen)
+        obstacle_group.update()
 
         # Obstacle movement
         obstacles_rect_list = obstacle_movement(obstacles_rect_list)
