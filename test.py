@@ -24,6 +24,8 @@ class Player(pygame.sprite.Sprite):
         self.player_index = 0
         self.gravity = 0
 
+        self.walk_speed = 2
+
         self.image = self.player_walk[0]
         self.rect = self.image.get_rect(midbottom=(80, 300))
 
@@ -33,8 +35,18 @@ class Player(pygame.sprite.Sprite):
     def player_input(self):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_SPACE] and self.rect.bottom >= 300:
-            self.gravity = -20
-            self.jump_sound.play()
+            self.jump()
+        if keys[pygame.K_RIGHT]:
+            self.move(self.walk_speed)
+        if keys[pygame.K_LEFT]:
+            self.move(-self.walk_speed)
+
+    def jump(self):
+        self.gravity = -20
+        self.jump_sound.play()
+
+    def move(self, speed):
+        self.rect.right += speed
 
     def apply_gravity(self):
         self.gravity += 1
@@ -96,7 +108,7 @@ class Obstacle(pygame.sprite.Sprite):
         self.destroy()
 
     def destroy(self):
-        if self.rect.x <= -100:
+        if self.rect.right <= -5:
             self.kill()
 
 
@@ -111,9 +123,18 @@ def display_score():
 def collision_sprite():
     if pygame.sprite.spritecollide(player.sprite, obstacle_group, False):
         obstacle_group.empty()
+        player.sprite.kill()
         return False
     else:
         return True
+
+
+def draw_title(text, col, x, y):
+    font = test_font
+    text_surface = font.render(text, True, col)
+    text_rect = text_surface.get_rect()
+    text_rect.center = (x, y)
+    screen.blit(text_rect, text_rect)
 
 
 pygame.init()
@@ -136,6 +157,8 @@ obstacle_group = pygame.sprite.Group()
 
 sky_surface = pygame.image.load('graphics/Sky.png').convert()
 ground_surface = pygame.image.load('graphics/ground.png').convert()
+
+scroll = 0
 
 # Intro screen
 player_stand = pygame.image.load('graphics/player/player_stand.png').convert_alpha()
@@ -170,9 +193,15 @@ while True:
                 if event.key == pygame.K_SPACE:
                     game_active = True
                     start_time = pygame.time.get_ticks()
+                    player.add(Player())
 
     if game_active:
-        screen.blit(sky_surface, (0, 0))
+        scroll_idx = scroll % 800
+        scroll += 1
+
+        screen.blit(sky_surface, (-scroll_idx, 0))
+        screen.blit(sky_surface, (800-scroll_idx, 0))
+
         screen.blit(ground_surface, (0, sky_surface.get_height()))
 
         score = display_score()
@@ -186,9 +215,6 @@ while True:
         game_active = collision_sprite()
 
     else:
-        obstacles_rect_list = []
-        player_gravity = 0
-
         screen.fill((94, 129, 162))
         screen.blit(vallman, vallman_rect)
 
